@@ -14,8 +14,6 @@ class App(object):
     def get_metadata(self, app_name):
         """Retrieve metadata of the target app."""
         self._app = app_name
-        if self._device._applist is None:
-            self._device._list_apps()
         return self._retrieve_metadata()
 
     def _retrieve_metadata(self):
@@ -25,9 +23,6 @@ class App(object):
 
         # Content of the app's local Info.plist
         plist_info_path = Utils.escape_path('%s/Info.plist' % metadata_agent['binary_directory'])
-
-        print(plist_info_path)
-
         plist_info = self._device.remote_op.parse_plist(plist_info_path)
         metadata_info = self.__parse_plist_info(plist_info)
 
@@ -57,6 +52,7 @@ class App(object):
 
         # Parse the JSON
         name             = self.__extract_field(agent_info, 'DisplayName').encode('ascii','replace')
+        bundle_type      = self.__extract_field(agent_info, 'BundleType')
         bundle_id        = self.__extract_field(agent_info, 'BundleIdentifier')
         data_directory   = self.__extract_field(agent_info, 'DataContainer', path=True)
         bundle_directory = self.__extract_field(agent_info, 'BundleContainer', path=True)
@@ -66,11 +62,13 @@ class App(object):
         entitlements     = self.__extract_field(agent_info, 'Entitlements')
         minimum_os       = self.__extract_field(agent_info, 'MinimumOS')
         team_id          = self.__extract_field(agent_info, 'TeamID')
+        signer_identity  = self.__extract_field(agent_info, 'SignerIdentity')
         uuid = bundle_directory.rsplit('/', 1)[-1]
 
         # Pack into a dict
         metadata = {
             'name': name,
+            'bundle_type': bundle_type,
             'bundle_id': bundle_id,
             'data_directory': data_directory,
             'bundle_directory': bundle_directory,
@@ -80,14 +78,19 @@ class App(object):
             'entitlements': entitlements,
             'minimum_os': minimum_os,
             'team_id': team_id,
+            'signer_identity': signer_identity,
             'uuid': uuid
         }
         return metadata
 
     def __parse_plist_info(self, plist):
         # Parse the Info.plist file
+        bundle_displayname = self.__extract_field(plist, 'CFBundleDisplayName')
         bundle_exe = self.__extract_field(plist, 'CFBundleExecutable')
+        bundle_id = self.__extract_field(plist, 'CFBundleIdentifier')
         bundle_package_type = self.__extract_field(plist, 'CFBundlePackageType')
+        bundle_version = "{} ({})".format(self.__extract_field(plist, 'CFBundleVersion'),
+                                          self.__extract_field(plist, 'CFBundleShortVersionString'))
         platform_version = self.__extract_field(plist, 'DTPlatformVersion')
         ats_settings = self.__extract_field(plist, 'NSAppTransportSecurity')
         try:
@@ -96,9 +99,12 @@ class App(object):
             url_handlers = None
         # Pack into a dict
         metadata = {
-            'platform_version': platform_version,
+            'bundle_displayname': bundle_displayname,
             'bundle_exe': bundle_exe,
+            'bundle_id': bundle_id,
             'bundle_package_type': bundle_package_type,
+            'bundle_version': bundle_version,
+            'platform_version': platform_version,
             'url_handlers': url_handlers,
             'ats_settings': ats_settings,
         }
@@ -167,10 +173,10 @@ class App(object):
         cmd = '{open} {app}'.format(open=self._device.DEVICE_TOOLS['OPEN'], app=bundle_id)
         self._device.remote_op.command_blocking(cmd, internal=True)
 
-    def search_pid(self, appname):
+    def search_pid(self, binary_name):
         """Retrieve the PID of the app's process."""
         self._device.printer.verbose('Retrieving the PID...')
-        cmd = "ps ax | grep -i '{appname}'".format(appname=appname)
+        cmd = "ps ax | grep -i '{binary_name}'".format(binary_name=binary_name)
         out = self._device.remote_op.command_blocking(cmd)
         try:
             process_list = filter(lambda x: '/var/mobile' in x, out)
@@ -183,7 +189,7 @@ class App(object):
         except Exception as e:
             raise Exception("PID not found")
 
-    def decrypt(self, app_metadata):
+    def decrypt(self, app_metadata, thin=False):
         """Decrypt the binary and unzip the IPA. Returns the full path of the decrypted binary"""
         # Run Clutch
         self._device.printer.info("Decrypting the binary...")
@@ -206,7 +212,7 @@ class App(object):
             if 'Clutch2: Permission denied' in out[0]:
                 msg = 'marked as executable (using chmod +x /usr/bin/Clutch* from a device shell)'
             elif 'Clutch2: command not found' in out[0]:
-                msg = 'installed on the device (by running again with SETUP_DEVICE=True)'
+                msg = 'installed on the device (by running again: device/dependency_installer)'
 
             if msg:
                 self._device.printer.error('Clutch2 could not be run successfully so the binary could not be decrypted')
@@ -223,22 +229,26 @@ class App(object):
 
         # Unzip IPA and get binary path
         fname_binary = self.unpack_ipa(app_metadata, fname_decrypted)
-        return fname_binary
 
         # Thin the binary
-        #fname_thinned = self.thin_binary(fname_binary)
-        #return fname_thinned
+        if thin:
+            return self.thin_binary(app_metadata, fname_binary)
+        return fname_binary
 
-    def thin_binary(self, fname_binary, arch=Constants.PREFERRED_ARCH):
+    def thin_binary(self, app_metadata, fname_binary, arch=Constants.PREFERRED_ARCH):
         self._device.printer.info("Thinning the binary...")
-        fname_thinned = self._device.remote_op.build_temp_path_for_file('thinned')
-        cmd = '{bin} -thin {arch} -output {output} {binary}'.format(bin=self._device.DEVICE_TOOLS['LIPO'],
+        if arch in app_metadata['architectures']:
+            fname_thinned = self._device.remote_op.build_temp_path_for_file('thinned')
+            cmd = '{bin} -thin {arch} -output {output} {binary}'.format(bin=self._device.DEVICE_TOOLS['LIPO'],
                                                                     arch=arch,
                                                                     output=fname_thinned,
                                                                     binary=fname_binary)
-        self._device.remote_op.command_blocking(cmd)
-        self._device.printer.debug("Thinned IPA stored at: %s" % fname_thinned)
-        return fname_thinned
+            self._device.remote_op.command_blocking(cmd)
+            self._device.printer.debug("Thinned IPA stored at: %s" % fname_thinned)
+            return fname_thinned
+        else:
+            self._device.printer.warning('Binary does not include the requested architecture ({}). Skipping...'.format(arch))
+            return fname_binary
 
     # ==================================================================================================================
     # UNPACK AN IPA FILE

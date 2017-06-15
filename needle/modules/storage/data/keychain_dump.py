@@ -54,7 +54,7 @@ class Module(BaseModule):
     def module_run(self):
         # Dump Keychain (outputs .plist files)
         self.printer.info("Dumping the keychain...")
-        cmd = '{}'.format(self.device.DEVICE_TOOLS['KEYCHAIN_DUMP'])
+        cmd = '{} 2>&1'.format(self.device.DEVICE_TOOLS['KEYCHAIN_DUMP'])
         self.device.remote_op.command_blocking(cmd)
 
         # Parse dumped plist files and merge them into a single data structure
@@ -77,7 +77,8 @@ class Module(BaseModule):
         # Print result
         if expected:
             self.printer.notify("The following content has been dumped (and matches the filter):")
-            loal_out = self.local_op.build_output_path_for_file('keychain_output', self)
-            self.print_cmd_output(expected, loal_out)
+            local_out = self.local_op.build_output_path_for_file('keychain_output', self)
+            self.print_cmd_output(expected, local_out)
+            self.add_issue('Keychain items detected ({})'.format(len(expected)), None, 'INVESTIGATE', local_out)
         else:
             self.printer.warning('No content found. Try to relax the filter (if applied) and ensure the screen is unlocked before dumping the keychain')

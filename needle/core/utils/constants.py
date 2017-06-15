@@ -12,7 +12,8 @@ class Constants(object):
     AUTHOR = 'MWR InfoSecurity (@MWRLabs) - Marco Lancini (@LanciniMarco)'
     EMAIL = 'marco.lancini[at]mwrinfosecurity.com'
     WEBSITE = 'mwr.to/needle'
-    VERSION = '1.0.2'
+    VERSION = '1.3.0'
+    VERSION_CHECK = 'https://raw.githubusercontent.com/mwrlabs/needle/master/needle/core/utils/constants.py'
 
     # Name variables
     NAME = 'Needle'
@@ -24,6 +25,7 @@ class Constants(object):
     FOLDER_TEMP = os.path.join(FOLDER_HOME, 'tmp')
     FOLDER_BACKUP = os.path.join(FOLDER_HOME, 'backup')
     FILE_HISTORY = os.path.join(FOLDER_HOME, 'needle_history')
+    FILE_DB = 'issues.db'
 
     # ==================================================================================================================
     # GLOBALS & AGENT
@@ -36,10 +38,11 @@ class Constants(object):
     GLOBAL_PASSWORD = 'alpine'
     GLOBAL_DEBUG = False
     GLOBAL_VERBOSE = True
-    GLOBAL_SETUP_DEVICE = False
     GLOBAL_OUTPUT_FOLDER = os.path.join(FOLDER_HOME, 'output')
     GLOBAL_PUB_KEY_AUTH = True
     GLOBAL_SAVE_HISTORY = True
+    GLOBAL_SKIP_OUTPUT_FOLDER_CHECK = False
+    GLOBAL_HIDE_SYSTEM_APPS = False
     PASSWORD_CLEAR = 'password_clear'
     PASSWORD_MASK = '********'
 
@@ -48,6 +51,7 @@ class Constants(object):
     AGENT_WELCOME = "Welcome to Needle Agent"
     AGENT_VERSION_MARK = "VERSION: "
     AGENT_OUTPUT_END = " :OUTPUT_END:"
+    AGENT_TIMEOUT_READ = 5
     AGENT_CMD_STOP = "stop"
     AGENT_CMD_OS_VERSION = "os_version"
     AGENT_CMD_LIST_APPS = "list_apps"
@@ -57,9 +61,6 @@ class Constants(object):
         '10': [
             'binary/installation/install',
             'binary/installation/pull_ipa',
-            'binary/reversing/class_dump',
-            'binary/reversing/strings',
-            'storage/data/keychain_dump'
         ]
     }
 
@@ -99,6 +100,8 @@ class Constants(object):
     DEVICE_PATH_TRUST_STORE  = '/private/var/Keychains/TrustStore.sqlite3'
     DEVICE_PATH_FRIDA_CACHE  = '/Library/Caches/frida-*'
     DEVICE_PATH_HOSTS        = '/etc/hosts'
+    DEVICE_PATH_EFFECTIVE_USER_SETTINGS_IOS9_AND_BELOW = '/var/mobile/Library/ConfigurationProfiles/EffectiveUserSettings.plist'
+    DEVICE_PATH_EFFECTIVE_USER_SETTINGS_IOS10 = '/var/mobile/Library/UserConfigurationProfiles/EffectiveUserSettings.plist'
 
     # DEVICE TOOLS
     FRIDA_PORT = 27042
@@ -124,7 +127,7 @@ class Constants(object):
             'WHICH': {'COMMAND': 'which', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'LIPO': {'COMMAND': 'lipo', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'PLUTIL': {'COMMAND': 'plutil', 'PACKAGES': ['com.ericasadun.utilities'], 'REPO': None, 'LOCAL': None, 'SETUP': None},
-            'UNZIP':  {'COMMAND': 'unzip', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
+            'UNZIP':  {'COMMAND': 'unzip', 'PACKAGES': ['unzip'], 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'STRINGS': {'COMMAND': 'strings', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
 
             # TOOLKITS
@@ -134,6 +137,7 @@ class Constants(object):
             # TOOLS
             'CYCRIPT': {'COMMAND': 'cycript', 'PACKAGES': ['cycript'], 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'FRIDA': {'COMMAND': 'frida', 'PACKAGES': ['re.frida.server'], 'REPO': 'https://build.frida.re/', 'LOCAL': None, 'SETUP': None},
+            'FRIDA32BIT': {'COMMAND': 'frida', 'PACKAGES': ['re.frida.server32'], 'REPO': 'https://build.frida.re/', 'LOCAL': None, 'SETUP': None},
             'GDB': {'COMMAND': 'gdb', 'PACKAGES': ['gdb'], 'REPO': 'http://cydia.radare.org/', 'LOCAL': None, 'SETUP': None},
             'THEOS': {'COMMAND': 'theos', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': [
                 "ln -s /usr/local/bin/perl /usr/bin/perl",
@@ -145,18 +149,23 @@ class Constants(object):
             'THEOS_NIC': {'COMMAND': '%sbin/nic.pl' % THEOS_FOLDER, 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
 
             # TO REPLACE
-            'CLASS-DUMP': {'COMMAND': 'class-dump', 'PACKAGES': ['pcre', 'net.limneos.classdump-dyld', 'class-dump'], 'REPO': '', 'LOCAL': None, 'SETUP': None},
-            'CLUTCH': {'COMMAND': 'Clutch2', 'PACKAGES': ['com.iphonecake.clutch2'], 'REPO': 'http://cydia.iphonecake.com/', 'LOCAL': None, 'SETUP': None},
+            'CLASS-DUMP': {'COMMAND': 'class-dump', 'PACKAGES': ['pcre', 'net.limneos.classdump-dyld', 'class-dump'], 'REPO': None, 'LOCAL': None, 'SETUP': None},
+            'CLUTCH': {'COMMAND': 'Clutch2', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': [
+                "curl -ksL \"http://cydia.iphonecake.com/Clutch2.0.4.deb\" -o /var/root/clutch.deb",
+                "dpkg -i /var/root/clutch.deb && rm -f /var/root/clutch.deb",
+                "killall -HUP SpringBoard"
+            ]},
             'CURL': {'COMMAND': 'curl', 'PACKAGES': ['curl'], 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'FILEDP': {'COMMAND': 'FileDP', 'PACKAGES': None, 'REPO': None, 'LOCAL': os.path.join(PATH_DEVICETOOLS, 'FileDP'), 'SETUP': None},
             'FSMON': {'COMMAND': 'fsmon', 'PACKAGES': None, 'REPO': None, 'LOCAL': os.path.join(PATH_DEVICETOOLS, 'fsmon'), 'SETUP': None},
+            'IPAINSTALLER': {'COMMAND': 'ipainstaller', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'KEYCHAIN_DUMP': {'COMMAND': 'keychain_dump', 'PACKAGES': None, 'REPO': None, 'LOCAL': os.path.join(PATH_DEVICETOOLS, 'keychain_dump'), 'SETUP': None},
             'ONDEVICECONSOLE': {'COMMAND': 'ondeviceconsole', 'PACKAGES': ['com.eswick.ondeviceconsole'], 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'OPEN': {'COMMAND': 'open', 'PACKAGES': ['com.conradkramer.open'], 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'OTOOL': {'COMMAND': 'otool', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
             'PBWATCHER': {'COMMAND': 'pbwatcher', 'PACKAGES': None, 'REPO': None, 'LOCAL': os.path.join(PATH_DEVICETOOLS, 'pbwatcher'), 'SETUP': None},
             'PERL': {'COMMAND': 'perl', 'PACKAGES': ['org.coolstar.perl', 'org.coolstar.iostoolchain'], 'REPO': 'http://coolstar.org/publicrepo/', 'LOCAL': None, 'SETUP': None},
-            'SCP': {'COMMAND': 'scp', 'PACKAGES': ['org.coolstar.scp-ftp-dropbear'], 'REPO': 'https://coolstar.org/publicrepo/', 'LOCAL': None, 'SETUP': None},
+            'SCP': {'COMMAND': 'scp', 'PACKAGES': ['org.coolstar.scp-sftp-dropbear'], 'REPO': 'https://coolstar.org/publicrepo/', 'LOCAL': None, 'SETUP': None},
             'UIOPEN': {'COMMAND': 'uiopen', 'PACKAGES': None, 'REPO': None, 'LOCAL': None, 'SETUP': None},
         }
     }

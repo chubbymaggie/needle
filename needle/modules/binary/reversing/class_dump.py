@@ -11,7 +11,7 @@ class Module(BaseModule):
             ('dump_interfaces', False, True, 'Set to True to dump each interface in its own file'),
             ('output', True, False, 'Full path of the output file, or to the folder where to save the interfaces'),
         ),
-        'comments': ['This might not work on 64bit binaries. In such cases, "cycript" or "hooking/frida/script_enum-all-methods" are recommended',
+        'comments': ['This might not work on 64bit binaries. In such cases, "cycript" or "binary/reversing/class_dump_frida_enum-all-methods" are recommended',
                      ]
     }
 
@@ -64,6 +64,6 @@ class Module(BaseModule):
     # ==================================================================================================================
     def module_run(self):
         # Decrypt the binary and unzip the IPA
-        self.fname_binary = self.device.app.decrypt(self.APP_METADATA)
+        self.fname_binary = self.device.app.decrypt(self.APP_METADATA, thin=True)
         # Perform class dump
         self.class_dump()

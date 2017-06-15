@@ -22,6 +22,16 @@ class FrameworkException(Exception):
 
 
 # ======================================================================================================================
+# MODE OF OPERATION
+# ======================================================================================================================
+class Mode(object):
+    """Contains constants that represent the state of the interpreter."""
+    CONSOLE = 0
+    CLI     = 1
+    GUI     = 2
+
+
+# ======================================================================================================================
 # FRAMEWORK CLASS
 # ======================================================================================================================
 class Framework(cmd.Cmd):
@@ -34,7 +44,6 @@ class Framework(cmd.Cmd):
     _loaded_modules = {}
     _jobs = []
     _record = None
-    _device_ready = False
     _local_ready = False
     # Mode Flags
     _script = 0
@@ -116,14 +125,6 @@ class Framework(cmd.Cmd):
     # ==================================================================================================================
     # COMPLETE METHODS
     # ==================================================================================================================
-    def complete_keys(self, text, line, *ignored):
-        args = line.split()
-        options = ['list', 'add', 'delete']
-        if 1 < len(args) < 4:
-            if args[1].lower() in options[:1]:
-                return []
-        return [x for x in options if x.startswith(text)]
-
     def complete_load(self, text, *ignored):
         return [x for x in Framework._loaded_modules if x.startswith(text)]
     complete_use = complete_load
@@ -348,12 +349,28 @@ class Framework(cmd.Cmd):
         print(getattr(self, 'do_jobs').__doc__)
         print('')
         print('Usage: jobs')
+        print('...list background jobs currently running.')
         print('')
 
     def help_kill(self):
         print(getattr(self, 'do_kill').__doc__)
         print('')
-        print('Usage: <job number>')
+        print('Usage: kill <job number>')
+        print('...stop the background job specified.')
+        print('')
+
+    def help_issues(self):
+        print(getattr(self, 'do_issues').__doc__)
+        print('')
+        print('Usage: issues')
+        print('...list the issues already identified.')
+        print('')
+
+    def help_add_issue(self):
+        print(getattr(self, 'do_add_issue').__doc__)
+        print('')
+        print('Usage: add_issue')
+        print('...start a wizard that will allow to manually add an issue.')
         print('')
 
     # ==================================================================================================================
@@ -591,6 +608,14 @@ class Framework(cmd.Cmd):
         except Exception:
             self.print_exception()
 
+    def do_issues(self, params):
+        """List currently gathered issues."""
+        self.ISSUE_MANAGER.issue_print()
+
+    def do_add_issue(self, params):
+        """Prompt the user to manually add an issue."""
+        self.ISSUE_MANAGER.issue_add_manual()
+
     # ==================================================================================================================
     # CONNECTION METHODS
     # ==================================================================================================================
@@ -652,6 +677,7 @@ class Framework(cmd.Cmd):
         # Target app not selected, launch wizard
         if not app:
             self.printer.info('Target app not selected. Launching wizard...')
+            self.device._list_apps(self._global_options['hide_system_apps'])
             app = self.device.select_target_app()
             self._global_options['app'] = app
             if app is None:
@@ -662,5 +688,7 @@ class Framework(cmd.Cmd):
         if not self.APP_METADATA or self.APP_METADATA['bundle_id'] != app:
             # Metadata not yet fetched, retrieve it
             self.printer.info("Retrieving app's metadata...")
+            if self.device._applist is None:
+                self.device._list_apps(self._global_options['hide_system_apps'])
             self.APP_METADATA = Framework.APP_METADATA = self.device.app.get_metadata(app)
         return app
