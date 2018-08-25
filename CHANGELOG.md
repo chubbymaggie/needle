@@ -11,6 +11,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 
 
+## [1.3.2] - 2017-07-13
+#### Fixed
+- **[CORE]** Search PID for System Apps
+- **[MODULE]** Keychain extraction of data not encodable in UTF8 _[from @federicodotta]_
+- **[MODULE]** Improved jailbreak detection bypass (`dynamic/detection/script_jailbreak-detection-bypass.py`)
+- **[MODULE]** Improved certificate pinning bypass (`comms/proxy/pinning_bypass_frida`)
+
+
+
+## [1.3.1] - 2017-06-22
+#### Fixed
+- **[CORE]** Asyncore problems _[from @floyd-fuh]_
+
+#### Removed
+- **[CORE]** Asyncore, replaced by regular sockets _[from @floyd-fuh]_
+
+
+
 ## [1.3.0] - 2017-06-07
 #### Added
 - **[CORE]** Support for System Applications
@@ -37,6 +55,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - **[CORE]** Remove infinite loop from `Retry` decorator, which attempts to restore a connection with the device if it fails
 - **[CORE]** Metadata parsing for app extensions
 - **[CORE]** Re-added support on iOS for: `storage/data/keychain_dump`, `binary/reversing/strings`, `binary/reversing/class_dump`
+- **[CORE]** Use unquote to convert spaces. Fixes Issue #15  _[from @ccsplit]_
 
 
 
